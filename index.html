@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Skate</title>
+<style>
+  /* The on-screen text: a condensed, slanted editorial look (original design). Out of the way while
+     skating; big and confident for tricks and the title. Colours: chalk white, ink, signal orange. */
+  :root { --chalk: #f5f3ee; --ink: #101114; --sig: #ff6a2b; --ok: #ffd84a; --bad: #ff5d52; --sk: #f3a25f;
+    --cond: 'Avenir Next Condensed', 'DIN Condensed', 'Barlow Condensed', 'Roboto Condensed', 'Arial Narrow', sans-serif; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #0c0d0f; color: var(--chalk); user-select: none;
+    font-family: 'Avenir Next', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+  canvas { display: block; }
+  #vignette { display: none; }
+  #score, #speed, #trick, #trickpts, #pad, #cam { position: fixed; text-shadow: 0 2px 14px rgba(0,0,0,.45); }
+  #score { top: 26px; left: 32px; padding-left: 14px; border-left: 3px solid var(--sig); font: italic 700 46px/0.95 var(--cond);
+    letter-spacing: .01em; font-variant-numeric: tabular-nums; }
+  #score::before { content: 'SCORE'; display: block; margin-bottom: 5px; font: 600 10px/1 'Avenir Next', sans-serif; font-style: normal; letter-spacing: .38em; opacity: .7; }
+  #speed { top: 104px; left: 49px; font: 600 11px/1 'Avenir Next', sans-serif; letter-spacing: .26em; text-transform: uppercase; opacity: .72; }
+  #trick { bottom: 13%; left: 0; right: 0; text-align: center; font: italic 700 40px/1 var(--cond); letter-spacing: .03em;
+    text-transform: uppercase; transition: opacity .3s, transform .3s cubic-bezier(.2,1.4,.4,1); text-shadow: 0 3px 18px rgba(0,0,0,.5); }
+  #trick::after { content: ''; display: block; width: 64px; height: 4px; margin: 12px auto 0; background: currentColor; transform: skewX(-24deg); }
+  #trick.off { opacity: 0; transform: translateY(10px) scale(.96); }
+  #trick.live { color: var(--chalk); } #trick.ok { color: var(--ok); } #trick.bad { color: var(--bad); } #trick.sk { color: var(--sk); }
+  #trickpts { bottom: calc(13% - 40px); left: 50%; transform: translateX(-50%) skewX(-12deg); padding: 5px 14px 4px; white-space: nowrap;
+    font: 700 13px/1.2 'Avenir Next', sans-serif; letter-spacing: .22em; text-transform: uppercase; font-variant-numeric: tabular-nums;
+    color: var(--ink); background: var(--chalk); text-shadow: none; transition: opacity .3s; }
+  #trickpts.off, #trickpts.bad { opacity: 0; } #trickpts.ok { background: var(--ok); } #trickpts.sk { background: var(--sk); }
+  #trickpts.live { background: rgba(245,243,238,.92); }
+  #meter { position: fixed; bottom: calc(13% + 74px); left: 50%; width: 170px; margin-left: -85px; height: 4px; background: rgba(255,255,255,.22);
+    transform: skewX(-24deg); transition: opacity .25s; }
+  #meter.off { opacity: 0; } #meter::before { content: ''; position: absolute; left: 35%; width: 30%; top: 0; bottom: 0; background: rgba(140,240,160,.6); }
+  #needle { position: absolute; top: -6px; width: 3px; height: 16px; margin-left: -1.5px; background: var(--chalk); box-shadow: 0 0 6px rgba(0,0,0,.5); }
+  #meter.warn #needle { background: var(--bad); }
+  #pad { top: 30px; right: 32px; font: 600 10px/1 'Avenir Next', sans-serif; letter-spacing: .2em; text-transform: uppercase; color: #ffb3a8; opacity: .8; }
+  #pad::before { content: ''; display: inline-block; width: 6px; height: 6px; margin-right: 9px; border-radius: 50%; background: currentColor; vertical-align: 1px; }
+  #pad.on { color: #9df0a8; }
+  #cam { top: 30px; left: 0; right: 0; text-align: center; font: italic 700 18px/1 var(--cond); letter-spacing: .14em; text-transform: uppercase;
+    transition: opacity .4s; pointer-events: none; }
+  #help { position: fixed; right: 32px; bottom: 30px; max-width: 340px; padding: 18px 22px; font-size: 12.5px; line-height: 1.75;
+    background: rgba(12,13,16,.62); border-left: 3px solid var(--sig); backdrop-filter: blur(12px); transition: opacity .3s; }
+  #help b { color: var(--ok); font-weight: 600; } #help .k { opacity: .55; }
+  #start { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; padding-left: 9vw; cursor: pointer;
+    background: linear-gradient(100deg, rgba(8,9,12,.86) 0%, rgba(8,9,12,.6) 42%, rgba(8,9,12,.08) 75%); transition: opacity .5s; }
+  #start::before { content: 'A SKATEBOARDING GAME'; margin-bottom: 18px; font: 600 11px/1 'Avenir Next', sans-serif; letter-spacing: .5em; color: var(--sig); }
+  #title { position: relative; max-width: 62vw; font: italic 800 clamp(56px, 8.4vw, 124px)/0.86 var(--cond); letter-spacing: -.01em; text-transform: uppercase;
+    text-shadow: 0 6px 40px rgba(0,0,0,.35); }
+  #title::after { content: ''; display: block; width: 46%; height: 10px; margin-top: 22px; background: var(--sig); transform: skewX(-24deg); transform-origin: left; }
+  #parks { margin-top: 44px; display: flex; gap: 14px; counter-reset: park; }
+  #parks button { counter-increment: park; min-width: 190px; text-align: left; padding: 14px 20px 15px; cursor: pointer; color: var(--chalk);
+    font: italic 700 26px/1 var(--cond); letter-spacing: .04em; text-transform: uppercase;
+    background: rgba(245,243,238,.06); border: 0; border-left: 3px solid rgba(245,243,238,.35); transition: background .2s, color .2s, border-color .2s; }
+  #parks button::before { content: '0' counter(park); display: block; margin-bottom: 7px; font: 600 10px/1 'Avenir Next', sans-serif; font-style: normal; letter-spacing: .3em; opacity: .6; }
+  #parks button.on { color: var(--ink); background: var(--chalk); border-color: var(--sig); }
+  #start p { margin: 34px 0 0; font: 600 11px/1.6 'Avenir Next', sans-serif; letter-spacing: .3em; text-transform: uppercase; opacity: .78; animation: pulse 2.2s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .38; } }
+  body:has(#start:not(.hidden)) :is(#help, #score, #speed) { opacity: 0; }   /* the title screen stands alone */
+  .hidden { opacity: 0 !important; pointer-events: none; }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/build/three.module.js",
+  "three/addons/": "./vendor/three/examples/jsm/",
+  "three-mesh-bvh": "./vendor/three-mesh-bvh/build/index.module.js"
+} }
+</script>
+</head>
+<body>
+<div id="vignette"></div>
+<div id="score">0</div>
+<div id="speed"></div>
+<div id="trick" class="off"></div><div id="trickpts" class="off"></div><div id="meter" class="off"><div id="needle"></div></div>
+<div id="pad"></div>
+<div id="cam" class="hidden"></div>
+<div id="help">
+  <b>Left stick</b> steer · spin in the air · pull back = powerslide<br>
+  <b>A</b> / <b>X</b> push (on a ramp: pump for speed) &nbsp; <b>B</b> brake<br>
+  <b>Right stick</b> down, flick up = ollie · up, flick down = nollie<br>
+  flick up-left = kickflip · up-right = heelflip <span class="k">(goofy: swapped)</span><br>
+  down, roll round the edge to a side = pop shuvit<br>
+  start at a side, roll to down, flick up-left = 360 flip<br>  keep rolling round past the side after a flip = double (Nightmare Flip...) · flick up, pull straight back down = impossible<br>
+  360 shuv / 360 flip + a 180 spin the same way = bigspin / bigspin flip<br>
+  hold it part-way down / up = manual / nose manual<br>
+  hold the stick back longer before the flick = higher pop · flick again in the air = late flip<br>
+  <b>LT</b> / <b>RT</b> grab in the air · right stick tweaks it · let go to land<br>  diagonals: LT = Airwalk · Judo · Benihana · Madonna, RT = Crail · Christ Air · Stalefish · Tailwalk (feet off: let go early!)<br>
+
+  grab + left stick forward / back = frontflip / backflip · hold the spin as you land = revert<br>
+  <b>A</b> + <b>X</b> together = hippie jump · push while rolling backwards = turn round, ride switch<br>
+  <b>Grinds</b> land on a rail: stick down = 5-0 · up = nosegrind · board sideways = slides<br>
+  <b>LB + D-pad down</b> drop a marker · <b>LB + D-pad up</b> go back to it<br>
+  <b>Back</b> change camera angle · <b>D-pad left / right</b> zoom out / in<br>
+  <b>Y</b> step off and walk (X sprint, A jump) · Y again to ride · <b>Start</b> hide this<br>
+  <span class="k">Keyboard: A/D steer · W push · S brake · X powerslide · Space ollie · J K L U I O N V P flips (Shift = nollie, twice = double) · ↓/↑ manual · Q/E grab (+ arrows tweak) · G hippie jump · Y off/on board (Shift sprint) · B back to last good spot · M/T marker · C camera · [ ] zoom · R restart · H help</span>
+</div>
+<div id="start"><div id="title"></div>
+  <div id="parks"><button data-park="skatepark">Skatepark</button><button data-park="plaza">Plaza</button><button data-park="mega">Mega Park</button></div>
+  <p>Click, or press A on the controller, to drop in · D-pad left / right picks the park</p></div>
+<script type="module" src="./main.js"></script>
+</body>
+</html>
